@@ -28,7 +28,7 @@ export class CvParserService {
   }
 
   async parseStructuredData(rawText: string): Promise<ParsedCvResult> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
     const prompt = `You are a CV parsing assistant. Extract structured data from the CV text below.
 Return ONLY valid JSON, no markdown formatting, no explanation, matching exactly this shape:
 {
