@@ -45,15 +45,24 @@ model Job {
 
   @@unique([source, externalId])
 }
-
 model Swipe {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  jobId     String
-  job       Job      @relation(fields: [jobId], references: [id])
-  decision  String
-  createdAt DateTime @default(now())
+  id                 String              @id @default(uuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  jobId              String
+  job                Job                 @relation(fields: [jobId], references: [id])
+  decision           String
+  createdAt          DateTime            @default(now())
+  generatedDocuments GeneratedDocument[]
 
   @@unique([userId, jobId])
+}
+
+model GeneratedDocument {
+  id        String   @id @default(uuid())
+  swipeId   String
+  swipe     Swipe    @relation(fields: [swipeId], references: [id])
+  type      String   // "cv" | "cover_letter"
+  fileUrl   String
+  createdAt DateTime @default(now())
 }

@@ -27,9 +27,10 @@ export class CvParserService {
     );
   }
 
-  async parseStructuredData(rawText: string): Promise<ParsedCvResult> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-    const prompt = `You are a CV parsing assistant. Extract structured data from the CV text below.
+async parseStructuredData(rawText: string, retriesLeft = 2): Promise<ParsedCvResult> {
+  const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+
+  const prompt = `You are a CV parsing assistant. Extract structured data from the CV text below.
 Return ONLY valid JSON, no markdown formatting, no explanation, matching exactly this shape:
 {
   "skills": ["skill1", "skill2"],
@@ -40,24 +41,28 @@ Only include information explicitly present in the CV text. Do not invent or inf
 
 CV TEXT:
 ${rawText}`;
-    try {
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text().trim();
-      const cleaned = responseText
-        .replace(/^```json\s*/i, '')
-        .replace(/```\s*$/, '');
-      console.log('RAW GEMINI RESPONSE:', responseText); // temporary debug line
-      return JSON.parse(cleaned) as ParsedCvResult;
-    } catch (error: any) {
-      if (error?.status === 429) {
-        throw new BadRequestException(
-          'Our AI service is briefly at capacity (free-tier rate limit). Please try again in about 30 seconds.',
-        );
-      }
-      console.log('PARSE ERROR:', error); // temporary debug line
+
+  try {
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text().trim();
+    const cleaned = responseText.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+    return JSON.parse(cleaned) as ParsedCvResult;
+  } catch (error: any) {
+    if (error?.status === 503 && retriesLeft > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2s before retrying
+      return this.parseStructuredData(rawText, retriesLeft - 1);
+    }
+    if (error?.status === 429) {
       throw new BadRequestException(
-        'Could not parse CV content. Please try a different file.',
+        'Our AI service is briefly at capacity (free-tier rate limit). Please try again in about 30 seconds.',
       );
     }
+    if (error?.status === 503) {
+      throw new BadRequestException(
+        'Google\'s AI service is temporarily overloaded. Please try again in a minute.',
+      );
+    }
+    throw new BadRequestException('Could not parse CV content. Please try a different file.');
   }
+}
 }
