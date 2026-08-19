@@ -31,13 +31,16 @@ export class JobsService {
   // (per the redesigned flow), every accepted job lives here until documents
   // are generated for it elsewhere (the AI Generation slice, built later).
   async getMatches(userId: string) {
-    return this.prisma.swipe.findMany({
-      where: { userId, decision: 'accepted' },
-      include: { job: true },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
+  return this.prisma.swipe.findMany({
+    where: {
+      userId,
+      decision: 'accepted',
+      generatedDocuments: { none: {} },
+    },
+    include: { job: true },
+    orderBy: { createdAt: 'desc' },
+  });
+}
   async removeMatch(userId: string, swipeId: string) {
     const swipe = await this.prisma.swipe.findUnique({ where: { id: swipeId } });
     if (!swipe || swipe.userId !== userId) {

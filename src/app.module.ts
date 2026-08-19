@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import {CvModule} from './cv/cv.module';
 import { JobsModule } from './jobs/jobs.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { JobsModule } from './jobs/jobs.module';
     AuthModule,
     CvModule,
     JobsModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
