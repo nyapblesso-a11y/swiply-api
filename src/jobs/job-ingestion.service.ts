@@ -10,6 +10,10 @@ interface AdzunaJob {
   location: { display_name: string };
   description: string;
   created: string;
+  salary_min?: number;
+  salary_max?: number;
+  redirect_url?: string;
+  category?: { label: string };
 }
 
 @Injectable()
@@ -25,25 +29,29 @@ export class JobIngestionService {
     const country = process.env.ADZUNA_COUNTRY ?? 'gb';
     const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}`;
 
-   const response = await firstValueFrom(
-  this.httpService.get(url, {
-    params: {
-      app_id: process.env.ADZUNA_APP_ID,
-      app_key: process.env.ADZUNA_APP_KEY,
-      results_per_page: 20,
-      what: query,
-    },
-  }),
-);
+    const response = await firstValueFrom(
+      this.httpService.get(url, {
+        params: {
+          app_id: process.env.ADZUNA_APP_ID,
+          app_key: process.env.ADZUNA_APP_KEY,
+          results_per_page: 20,
+          what: query,
+        },
+      }),
+    );
 
     const jobs: AdzunaJob[] = response.data.results ?? [];
     let storedCount = 0;
 
     for (const job of jobs) {
       try {
+        const skillTags = job.category?.label
+          ? job.category.label.replace(/\s*Jobs$/i, '').split('&').map((s) => s.trim())
+          : [];
+
         await this.prisma.job.upsert({
           where: { source_externalId: { source: 'adzuna', externalId: job.id } },
-          update: {}, // job already exists, no need to overwrite
+          update: {},
           create: {
             source: 'adzuna',
             externalId: job.id,
@@ -52,6 +60,10 @@ export class JobIngestionService {
             location: job.location?.display_name ?? 'Unknown',
             description: job.description,
             postedAt: job.created ? new Date(job.created) : null,
+            salaryMin: job.salary_min ?? null,
+            salaryMax: job.salary_max ?? null,
+            redirectUrl: job.redirect_url ?? null,
+            skillTags,
           },
         });
         storedCount++;

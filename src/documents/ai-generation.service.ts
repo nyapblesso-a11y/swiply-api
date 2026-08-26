@@ -17,7 +17,15 @@ export class AiGenerationService {
   ): Promise<GeneratedContent> {
     const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    const systemPrompt = `You are a professional CV and cover letter writer. You will be given a candidate's existing CV data and a job description. Using ONLY the information provided in the candidate's CV, produce a tailored CV and a tailored cover letter for this specific job. Do not invent any experience, skill, employer, or qualification that is not present in the provided CV data. You may reorder, re-emphasize, and rephrase existing content to better match the job description. Write in a professional, first-person tone. Return your response in two clearly labelled sections: '--- CV ---' and '--- COVER LETTER ---'.`;
+const systemPrompt = `You are a professional CV and cover letter writer. You will be given a candidate's existing CV data and a job description. Using ONLY the information provided in the candidate's CV, produce a tailored CV and a tailored cover letter for this specific job. Do not invent any experience, skill, employer, or qualification that is not present in the provided CV data. You may reorder, re-emphasize, and rephrase existing content to better match the job description. Write in a professional, first-person tone.
+
+Keep each document concise: aim for approximately 250 words each (CV and cover letter separately). This is a target, not a hard limit — prioritize including the most relevant, job-matching content over hitting an exact count.
+
+For the CV, keep it organized into clear, brief sections (e.g. Profile, Experience, Education, Skills), but keep each section tight — short, high-impact lines rather than long paragraphs.
+
+For the cover letter, keep it to 3-4 short paragraphs: an opening hook, 1-2 paragraphs connecting the candidate's real background to the role, and a brief closing.
+
+Return your response in two clearly labelled sections: '--- CV ---' and '--- COVER LETTER ---'.`;
 
     const userPrompt = `Candidate CV data: ${JSON.stringify(cvData)}. Job title: ${job.title}. Company: ${job.company}. Job description: ${job.description}. Generate the tailored CV and cover letter as instructed.`;
 

@@ -39,6 +39,10 @@ model Job {
   company     String
   location    String
   description String
+  salaryMin   Float?
+  salaryMax   Float?
+  redirectUrl String?
+  skillTags   String[]  @default([])
   postedAt    DateTime?
   createdAt   DateTime  @default(now())
   swipes      Swipe[]
