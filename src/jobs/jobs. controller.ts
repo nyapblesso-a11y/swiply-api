@@ -46,8 +46,6 @@ export class JobsController {
     return this.jobsService.removeMatch(req.user.userId, id);
   }
 
-  // Temporary manual trigger for testing ingestion — remove or guard behind
-  // an admin check later; not something end users should call directly.
   @Post('ingest')
   async ingest(@Body('query') query: string) {
     const count = await this.jobIngestion.fetchAndStoreJobs(
