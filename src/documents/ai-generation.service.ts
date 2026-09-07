@@ -15,9 +15,13 @@ export class AiGenerationService {
     job: { title: string; company: string; description: string },
     retriesLeft = 2,
   ): Promise<GeneratedContent> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-flash-latest',
+    });
 
-const systemPrompt = `You are a professional CV and cover letter writer. You will be given a candidate's existing CV data and a job description. Using ONLY the information provided in the candidate's CV, produce a tailored CV and a tailored cover letter for this specific job. Do not invent any experience, skill, employer, or qualification that is not present in the provided CV data. You may reorder, re-emphasize, and rephrase existing content to better match the job description. Write in a professional, first-person tone.
+    const systemPrompt = `You are a professional CV and cover letter writer. You will be given a candidate's existing CV data and a job description. Using ONLY the information provided in the candidate's CV, produce a tailored CV and a tailored cover letter for this specific job. Do not invent any experience, skill, employer, or qualification that is not present in the provided CV data. You may reorder, re-emphasize, and rephrase existing content to better match the job description. Write in a professional, first-person tone.
+
+Do not use any markdown formatting — no asterisks for bold or italics, no pound signs for headers, no markdown bullet syntax. Write in plain text only. Use line breaks and blank lines to separate sections, and simple dashes (-) for list items if needed.
 
 Keep each document concise: aim for approximately 250 words each (CV and cover letter separately). This is a target, not a hard limit — prioritize including the most relevant, job-matching content over hitting an exact count.
 
@@ -29,22 +33,68 @@ Return your response in two clearly labelled sections: '--- CV ---' and '--- COV
 
     const userPrompt = `Candidate CV data: ${JSON.stringify(cvData)}. Job title: ${job.title}. Company: ${job.company}. Job description: ${job.description}. Generate the tailored CV and cover letter as instructed.`;
 
-    try {
-      const result = await model.generateContent(`${systemPrompt}\n\n${userPrompt}`);
-      const responseText = result.response.text().trim();
-      return this.splitSections(responseText);
-    } catch (error: any) {
-      if (error?.status === 503 && retriesLeft > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return this.generateTailoredDocuments(cvData, job, retriesLeft - 1);
-      }
-      if (error?.status === 429) {
-        throw new BadRequestException(
-          'Our AI service is briefly at capacity (free-tier rate limit). Please try again in about 30 seconds.',
-        );
-      }
-      throw new BadRequestException('Could not generate documents. Please try again.');
-    }
+   try {
+  const result = await model.generateContent(
+    `${systemPrompt}\n\n${userPrompt}`,
+  );
+
+  const responseText = result.response.text().trim();
+
+  console.log('RAW GEMINI DOC RESPONSE:', responseText);
+
+  return this.splitSections(responseText);
+} catch (error: any) {
+  const status = error?.status;
+
+  console.error(
+    `DOC GENERATION ERROR (status: ${status}, retries left: ${retriesLeft}):`,
+    error,
+  );
+
+  if ((status === 503 || status === 429) && retriesLeft > 0) {
+    const attempt = 3 - retriesLeft;
+
+    const delay = Math.pow(2, attempt + 1) * 1000;
+
+    console.log(
+      `Gemini temporarily unavailable (${status}). Retrying in ${delay}ms...`,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    return this.generateTailoredDocuments(
+      cvData,
+      job,
+      retriesLeft - 1,
+    );
+  }
+
+  if (status === 429) {
+    throw new BadRequestException(
+      'Our AI service is currently busy. Please try again in a moment.',
+    );
+  }
+
+  if (status === 503) {
+    throw new BadRequestException(
+      'Our AI service is temporarily experiencing high demand. Please try again in a moment.',
+    );
+  }
+
+  throw new BadRequestException(
+    'Could not generate documents. Please try again.',
+  );
+}
+  }
+
+  private stripMarkdown(text: string): string {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1') 
+      .replace(/\*(.*?)\*/g, '$1') 
+      .replace(/^#{1,6}\s*/gm, '') 
+      .replace(/^[-•]\s*/gm, '• ') 
+      .replace(/\n{3,}/g, '\n\n') 
+      .trim();
   }
 
   private splitSections(text: string): GeneratedContent {
@@ -60,8 +110,12 @@ Return your response in two clearly labelled sections: '--- CV ---' and '--- COV
       );
     }
 
-    const cvText = text.slice(cvIndex + cvMarker.length, coverIndex).trim();
-    const coverLetterText = text.slice(coverIndex + coverMarker.length).trim();
+    const cvText = this.stripMarkdown(
+      text.slice(cvIndex + cvMarker.length, coverIndex).trim(),
+    );
+    const coverLetterText = this.stripMarkdown(
+      text.slice(coverIndex + coverMarker.length).trim(),
+    );
 
     if (cvText.length < 30 || coverLetterText.length < 30) {
       throw new BadRequestException(

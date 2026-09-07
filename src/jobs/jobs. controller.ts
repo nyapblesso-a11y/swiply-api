@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JobIngestionService } from './job-ingestion.service';
 import { SwipeDto } from './dto/swipe.dto';
@@ -27,6 +36,11 @@ export class JobsController {
     return this.jobsService.getMatches(req.user.userId);
   }
 
+  @Get(':id')
+  async getOne(@Param('id') id: string) {
+    return this.jobsService.getJobById(id);
+  }
+
   @Delete('matches/:id')
   async removeMatch(@Param('id') id: string, @Req() req: any) {
     return this.jobsService.removeMatch(req.user.userId, id);
@@ -36,7 +50,9 @@ export class JobsController {
   // an admin check later; not something end users should call directly.
   @Post('ingest')
   async ingest(@Body('query') query: string) {
-    const count = await this.jobIngestion.fetchAndStoreJobs(query || 'developer');
+    const count = await this.jobIngestion.fetchAndStoreJobs(
+      query || 'developer',
+    );
     return { message: `Ingested jobs for query "${query}"`, count };
   }
 }

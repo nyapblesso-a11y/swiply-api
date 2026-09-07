@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException,NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JobMatchingService } from './job-matching.service';
 import { SwipeDto } from './dto/swipe.dto';
@@ -27,22 +27,29 @@ export class JobsService {
     });
   }
 
+  async getJobById(id: string) {
+    const job = await this.prisma.job.findUnique({ where: { id } });
+    if (!job) throw new NotFoundException('Job not found');
+    return job;
+  }
   // "Matches" = accepted jobs. Since generation is now decoupled from swiping
   // (per the redesigned flow), every accepted job lives here until documents
   // are generated for it elsewhere (the AI Generation slice, built later).
   async getMatches(userId: string) {
-  return this.prisma.swipe.findMany({
-    where: {
-      userId,
-      decision: 'accepted',
-      generatedDocuments: { none: {} },
-    },
-    include: { job: true },
-    orderBy: { createdAt: 'desc' },
-  });
-}
+    return this.prisma.swipe.findMany({
+      where: {
+        userId,
+        decision: 'accepted',
+        generatedDocuments: { none: {} },
+      },
+      include: { job: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
   async removeMatch(userId: string, swipeId: string) {
-    const swipe = await this.prisma.swipe.findUnique({ where: { id: swipeId } });
+    const swipe = await this.prisma.swipe.findUnique({
+      where: { id: swipeId },
+    });
     if (!swipe || swipe.userId !== userId) {
       throw new ConflictException('Match not found');
     }
